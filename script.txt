@@ -1,0 +1,74 @@
+1.
+I'm Andy, and I'm going to present 2 papers on simulating molecules and proteins using neural nets.
+
+2.
+The problem is that it is very computationally expensive to simulate molecule and proteins, even on a node with powerful gpus it can still take days to simulate just a couple hundred nanoseconds. If we can approximate the calculations with a neural net it could provide a significant speedup.
+
+The first paper creates a model that takes in any number of atoms so it can generalize to other molecules outside the training data. The input is their cartesian coordinates, and embeddings based on their atom type, usually hydrogen, carbon, or oxygen.
+
+The model should be invariant over translations and rotations, and should conserve energy.
+
+3.
+To enforce invariants over rotations and translations, the model is restricted to only depend on the distance between any 2 atoms, rather than their absolute cartesian coordinates.
+
+4.
+To preserve the conservation of energy, instead of having the model guessing the force on each atom directly, it will first guess the total energy of the system, a single scalar, and then differentiate that with respect to each atom position. The resulting gradient will provide the force, and the gradient of a scalar field always has no curl, but only divergence. So the resulting force field will be guaranteed to preserve the laws of physics.
+
+5.
+The archetecture attaches a feature to each atom at each interaction block. The features start off as the embeddings. Then at each interaction block a simple atom wise layer is applied to each feature. The shifted softplus was added to add some nonlinearity in the model to prevent plateuing when starting to train.
+
+6.
+The cfconv layers, a continous filter convolutions, are a generalization of convolutions over the atoms that are continous rather than discrete over a grid. They will convolute over all the other atoms, applying a non-linear radial basis function centered at mu_k to the distances between the atoms.
+
+7.
+The loss function for training takes into account the energy and the force errors at each frame of th etraining data.
+
+Looking at this you may notice, the loss already takes the gradient of the model with respect to the input positions, but for gradient descent it requires taking the gradient of th loss with respect to the model parameters. So for inference, one is already doing a backwards pass and back propigation, and for training, one has to backpropigation over the backpropigation. For this to work the entire model had to be double differntiable.
+
+8.
+The actual results of this first paper aren't that impressive compared to similar models at th time, in a lot of cases it performs worse. But the idea of keeping the invariants, along with the continious filter convolution will be used in the next paper.
+
+9.
+The next paper will combine the first papers "Schnet" archetecture with another papers CGnet, standing for coarse grained network.
+
+10.
+When a molecule is simulated, not all atoms are important to the overall movement of the molecule. For molecules sometimes just the dihedral angle are the most important motions, and with proteins one way of oarse graining is to only keep the carbon alpha backbone of the amino acid chains.
+
+11.
+A quick tangent, CGSchnet uses a graph neural networks.
+
+Similar to a convolutional layer, graph neural networks apply a convolution over many points. They are a generalizeation of a convolution to a graph, called a graph convolution. Instead of passing in a grid or vector of features, they take in a graph where each verticie and edge have feature attahed to them. Then at each layer the convolution will take calculate the output graphs feature for each vertex and edge.
+
+12.
+Just like Schnet, the graph neural networks will allow more flexibly structured data to be passed in, while preserving invariance over switching the order of the atoms. Here, the graph convolutions for the verticies are using the previous papers continous filter convolution applied only on the neighborhood of a verticie, and not between every single atom. Similar to the previous paper, the input graph would be the embeddings attached to each vertex, and the distances between atoms as the edges.
+
+13.
+Verticies may only be connected to atoms within a threshold distance. It will avoid taking into acount atoms that are very far away. Based on the positions of the atoms, the structure of the graph may change. For example here, the carbon alpha atoms on this proteina represented as a graph may only connect to their adjacent sequences.
+
+14.
+The nerual network of the model looks very similar to the previous papers, but with the addition of coarse graining and a prior. The prior is an estimation of the molecular simulation, usually taking into acount overall translational and harmonic motion. The output would be the sum of the neural network and the prior.
+
+15.
+It's called the prior because it acts similar, but not exactly, like the prior in Bayesean maximum likely estimation, in the sense that it is a direct addition to the model.
+
+16.
+It is hard to use the previous models loss function because the energy of the coarse grained system, since the coarse-graining process will change the thermodynamic gibbs entropy function. To simulate a molecule or protein in a heat bath of water, the temperature of the system should stay constant. But when converting to coare grained coordinates the entropy function given an energy will change due to multiple real states being mapped to the same macrostate coarse grained configuration.
+
+17.
+So instead just look at the forces. The forces can be coarse grained by applying the same matrix to them. So here they are only matching the forces, and no the total energy of the system. This isn't entirely correct either since there are multiple correct forces due to multiple possible states one coarse grained configuation could be in.
+
+18.
+The results are a bit ambigious. There are no standard benchmarks for this type of simulation. One can instead simulate the trajectory for a every long time, then sample the probabiltity by fitting a histogram or kernel density function to the distribution. The free energy which can be extracted while keeping the temperature constant can then be estimated from the boltzman equation based on the distribution.
+
+Here the shaded are is the ground truth.
+
+19.
+We can compare the distributions with KL divergence and mean squared error.
+
+The noise is a gaussian distribution added to the positions of the atoms with variance sigma. By varying the positions from the baseline truth we can see how the estimation of the energy landscape changes based on changes to the input.
+
+These are the results for chignolin, a very simple protein
+
+20.
+
+Here are the results for alanine, a very simple molecule.

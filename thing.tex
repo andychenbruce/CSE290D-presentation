@@ -26,8 +26,8 @@
   The model should only depend on $\| \vec{r}_i - \vec{r}_j \|$ between any two atoms, but \alert{never} $\vec{r}_i$ alone.
 \end{frame}
 \begin{frame}
-  \frametitle{Enforcing Invariants}
-  \begin{block}{Conservation of energy}
+  \frametitle{Conservation of energy}
+  \begin{block}{Constraining to zero curl}
     Instead of the model calculating the forces $\mathbf{\hat{F}}(\mathbf{R}, \mathbf{Z}) \in \mathbb{R}^{3 \times n}$, calculate the energy $E(\mathbf{R}, \mathbf{Z}) \in \mathbb{R}$, then take the \alert{gradient with respect to the positions} to calculate the force.
     $\mathbf{\hat{F}} = \nabla_{\mathbf{R}} E$
   \end{block}

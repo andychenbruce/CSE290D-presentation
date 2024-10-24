@@ -84,12 +84,125 @@
 \begin{frame}
   \frametitle{Paper 2}
   \huge \href{https://arxiv.org/abs/2007.11412}{Next paper link}\\
-  \huge Schnet + CGNet = CGSchnet
+  \huge Schnet + CGnet = CGSchnet
 \end{frame}
 \begin{frame}
   \frametitle{Coarse graining}
-  We want to map $N$ atoms to $n$ ``interaction sites''.
-  We use a matrix $\Xi$ to map $\mathbb{R}^{3N} \longrightarrow \mathbb{R}^{3n}$. Given $R \in \mathbb{R}^{3N}$, the coarse grained $r = \Xi R$. Each interaction site is a linear combination of atom positions. (Also each row of $\Xi$ should sum to 1, so translations of all the atoms result in the the interaction sites being translated too.)
+  We want to map $n$ atoms to $N$ ``interaction sites''. We use a matrix $\Xi$ to map $\mathbb{R}^{3n} \longrightarrow \mathbb{R}^{3N}$. Given $r \in \mathbb{R}^{3n}$, the coarse grained $R = \Xi r$. In this paper $\Xi$ only consists of ones and zeros, so only a subset of the atom positions are used, and the rest of the information is discarded.
+  \begin{center}
+    \includegraphics[width=0.7\linewidth]{./coarse_graining.png}
+  \end{center}
 \end{frame}
-
+\begin{frame}
+  \frametitle{Quick Tangent, Graph Neural Networks}
+  Dense layers map features to features
+  \begin{center}
+    $F^A \longrightarrow F^B$
+  \end{center}
+  Convolutional layers map a $n$ dimenstional grid of features $F_{in}$ to a grid by applying a convoltution with a kernel function $\phi \in  \mathbf{R}^n \longrightarrow \mathbf{R}$.
+  \begin{center}
+    $F_{in}^{A_1 \times \dots \times A_n} \longrightarrow F_{out}^{B_1 \times \dots \times B_n}$
+  \end{center}
+  Graph layers maps graphs to graphs using a graph convolution functions $\psi_v \in (V, G) \longrightarrow F$, $\psi_e \in (E, G) \longrightarrow F_{e, out}$
+  \begin{center}
+    $(V_{F_{v, in}}, E_{F_{e, in}}) \longrightarrow (V_{F_{v, out}}, E_{F_{e, out}})$
+  \end{center}
+  The graphs can have any number of verticies or edges.
+\end{frame}
+\begin{frame}
+  \frametitle{GNNs: Arbitrary structure}
+  GNN's allow arbitrary structure of data to be passed in.
+  \begin{block}{Invariance over graph permutations}
+    For example the output features of a vector $v \in V$ with a set of connected edges $N_v$ could look like:
+    \begin{center}
+      $\phi(f_v, \oplus_{u \in N_v}\psi(f_v, f_u, f_{e_{uv}}))$
+    \end{center}
+    Where $f_v$ or $f_e$ is the feature for the coresponding vertex or edge. $\oplus$ should be a permutation-invariant aggregator to preserve the networks invariance.
+  \end{block}
+  Because it is invariant over permutations of the verticies, and we can structure the graph however we want we don't require every atom to be interacting with every other.
+\end{frame}
+\begin{frame}
+  \frametitle{GNNs: Arbitrary structure}
+  \begin{minipage}{6cm}
+    \includegraphics[width=\linewidth]{./coarse_graining2.png}
+  \end{minipage}% aa
+  \begin{minipage}{6cm}
+    Not all atoms must have edges between them. For each frame at positions $R$, edges can only be added if interaction sites are smaller than some distance $\epsilon$. Fewer edges requires less calculations in the graph neural network.
+  \end{minipage}
+\end{frame}
+\begin{frame}
+  \frametitle{CGSchnet Archetecture}
+  \begin{center}
+    \includegraphics[width=0.5\linewidth]{./cgschnet_arch.png}
+  \end{center}
+  Create a network similar to Schnet, but with the addition of coarse graining and adding a ``prior'' that acts as a bad simulation extimated from the training data of a protein. Many different priors to choose from, usually estimates bonds as spring constants with some harmonic motion.
+\end{frame}
+\begin{frame}
+  \frametitle{Prior}
+  \begin{center}
+    \includegraphics[width=0.3\linewidth]{./cgschnet_arch.png}
+  \end{center}
+  \small\begin{block}{Why is it called the ``prior''?}
+  MLE for Bayesian inference has an equation given a model $\theta$ and data $D$:\\
+  \begin{center}
+    $\text{posterior} = P(\theta | D) = \dfrac{P(D | \theta) P(\theta)}{P(D)} = \dfrac{\text{likelyhood} \times \text{prior}}{\text{marginal}}$
+  \end{center}
+  If $P(D)$ is constant then
+  \begin{center}
+    $\ln(P(D | \theta) P(\theta)) = \ln(P(D | \theta)) + \ln(P(\theta))$
+  \end{center}
+  \end{block}
+\end{frame}
+\begin{frame}
+  \frametitle{Coarse Grain Loss function}
+  You can no longer consider the total energy of a coarse grained state because it would require the entropy removed from coarse graning to estimate the free energy.\\
+  \begin{center}
+    Boltzman equation is: $E(R) = -k_BT \ln(p(R))$
+  \end{center}
+  The Helmholtz free energy is also:
+  \begin{center}
+    $E = U - TS$
+  \end{center}
+  But coarse graining changes how the entropy, $S$, changes for a fixed temperature.
+  \begin{center}
+    For heat transfer, temperature is defined as $\dfrac{1}{T} = \dfrac{\partial S}{\partial E}$
+  \end{center}
+  But entropy is defined as
+  \begin{center}
+    $S = \int_{V^n}p(r, E)\ln(p(r, E))dr \approx \int_{V^N}p(R, E)\ln(p(R, E))dR$
+  \end{center}
+\end{frame}
+\begin{frame}
+  \frametitle{Coarse Grain Loss function}
+  So we just match on the coarse grain equivelent of the forces:
+  \begin{center}
+    $L(M, Z, r)= \dfrac{1}{N} \sum^N_{i=1} \sum^3_{d=1} ( \Xi F^{real}_{i_d} - \dfrac{\partial E}{\partial R_{i_d}} )^2$
+  \end{center}
+\end{frame}
+\begin{frame}
+  \frametitle{Results}
+  There are actually no standard benchmarks... for now one just checks if the energy surfaces kind of look similar to the ground truth. One can find this by simulating the ground truth and CGSchnet for a very long time (a couple microseconds). Then we can estimate the free energy from the Boltzman equation.
+  \begin{center}
+    \includegraphics[width=0.8\linewidth]{./chignolin_results.png}
+  \end{center}
+\end{frame}
+\begin{frame}
+  \frametitle{Results (Chignolin)}
+  \begin{center}
+    \includegraphics[width=0.6\linewidth]{./chignolin_results.png}
+    \includegraphics[width=0.6\linewidth]{./chignolin_divergence.png}
+  \end{center}
+\end{frame}
+\begin{frame}
+  \frametitle{Results (Capped alanine)}
+  \begin{center}
+    \includegraphics[width=0.6\linewidth]{./alanine_results.png}
+    \includegraphics[width=0.6\linewidth]{./alanine_divergence.png}
+  \end{center}
+\end{frame}
+\begin{frame}
+  \begin{center}
+    \Huge Q\&A
+  \end{center}
+\end{frame}
 \end{document}
